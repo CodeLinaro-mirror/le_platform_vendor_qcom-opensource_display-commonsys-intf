@@ -96,8 +96,11 @@ void DeviceImpl::serviceDied(uint64_t client_handle,
   }
 }
 
-DeviceImpl::DeviceClientContext::DeviceClientContext(const sp<IDisplayConfigCallback> callback) {
-  callback_ = callback;
+DeviceImpl::DeviceClientContext::DeviceClientContext(
+            const sp<IDisplayConfigCallback> callback) : callback_(callback) { }
+
+sp<IDisplayConfigCallback> DeviceImpl::DeviceClientContext::GetDeviceConfigCallback() {
+  return callback_;
 }
 
 void DeviceImpl::DeviceClientContext::SetDeviceConfigIntf(ConfigInterface *intf) {
@@ -390,10 +393,9 @@ void DeviceImpl::DeviceClientContext::ParseControlIdlePowerCollapse(const ByteSt
 }
 
 void DeviceImpl::DeviceClientContext::ParseGetWritebackCapabilities(perform_cb _hidl_cb) {
-  bool is_wb_ubwc_supported;
-  ByteStream output_params;
-
+  bool is_wb_ubwc_supported = false;
   int32_t error = intf_->GetWriteBackCapabilities(&is_wb_ubwc_supported);
+  ByteStream output_params;
   output_params.setToExternal(reinterpret_cast<uint8_t*>(&is_wb_ubwc_supported),
                               sizeof(bool));
 
@@ -439,13 +441,11 @@ void DeviceImpl::DeviceClientContext::ParseSetPowerMode(const ByteStream &input_
 void DeviceImpl::DeviceClientContext::ParseIsPowerModeOverrideSupported(
                                       const ByteStream &input_params,
                                       perform_cb _hidl_cb) {
-  const uint32_t *disp_id;
-  bool supported = false;
-  ByteStream output_params;
-
   const uint8_t *data = input_params.data();
-  disp_id = reinterpret_cast<const uint32_t*>(data);
+  const uint32_t *disp_id = reinterpret_cast<const uint32_t*>(data);
+  bool supported = false;
   int32_t error = intf_->IsPowerModeOverrideSupported(*disp_id, &supported);
+  ByteStream output_params;
   output_params.setToExternal(reinterpret_cast<uint8_t*>(&supported),
                               sizeof(bool));
 
@@ -454,13 +454,11 @@ void DeviceImpl::DeviceClientContext::ParseIsPowerModeOverrideSupported(
 
 void DeviceImpl::DeviceClientContext::ParseIsHdrSupported(const ByteStream &input_params,
                                                           perform_cb _hidl_cb) {
-  const uint32_t *disp_id;
-  bool supported;
-  ByteStream output_params;
-
   const uint8_t *data = input_params.data();
-  disp_id = reinterpret_cast<const uint32_t*>(data);
+  const uint32_t *disp_id = reinterpret_cast<const uint32_t*>(data);
+  bool supported = false;
   int32_t error = intf_->IsHDRSupported(*disp_id, &supported);
+  ByteStream output_params;
   output_params.setToExternal(reinterpret_cast<uint8_t*>(&supported),
                               sizeof(bool));
 
@@ -469,13 +467,11 @@ void DeviceImpl::DeviceClientContext::ParseIsHdrSupported(const ByteStream &inpu
 
 void DeviceImpl::DeviceClientContext::ParseIsWcgSupported(const ByteStream &input_params,
                                                           perform_cb _hidl_cb) {
-  const int32_t *disp_id;
-  bool supported = false;
-  ByteStream output_params;
-
   const uint8_t *data = input_params.data();
-  disp_id = reinterpret_cast<const int32_t*>(data);
+  const int32_t *disp_id = reinterpret_cast<const int32_t*>(data);
+  bool supported = false;
   int32_t error = intf_->IsWCGSupported(*disp_id, &supported);
+  ByteStream output_params;
   output_params.setToExternal(reinterpret_cast<uint8_t*>(&supported),
                               sizeof(bool));
 
@@ -582,6 +578,10 @@ void DeviceImpl::DeviceClientContext::ParseGetSupportedDsiBitclks(const ByteStre
   int32_t error = intf_->GetSupportedDSIBitClks(*disp_id, &bit_clks);
 
   bit_clks_data = reinterpret_cast<uint64_t *>(malloc(sizeof(uint64_t) * bit_clks.size()));
+  if (bit_clks_data == NULL) {
+    _hidl_cb(-EINVAL, {}, {});
+    return;
+  }
   for (int i = 0; i < bit_clks.size(); i++) {
     bit_clks_data[i] = bit_clks[i];
   }
@@ -642,10 +642,9 @@ void DeviceImpl::DeviceClientContext::ParseIsSmartPanelConfig(const ByteStream &
 }
 
 void DeviceImpl::DeviceClientContext::ParseIsAsyncVdsSupported(perform_cb _hidl_cb) {
-  bool is_supported;
-  ByteStream output_params;
-
+  bool is_supported = false;
   int32_t error = intf_->IsAsyncVDSCreationSupported(&is_supported);
+  ByteStream output_params;
   output_params.setToExternal(reinterpret_cast<uint8_t*>(&is_supported),
                              sizeof(bool));
 
@@ -692,6 +691,36 @@ void DeviceImpl::DeviceClientContext::ParseControlQsyncCallback(uint64_t client_
   int32_t error = intf_->ControlQsyncCallback(*enable);
 
   _hidl_cb(error, {}, {});
+}
+
+void DeviceImpl::DeviceClientContext::ParseSendTUIEvent(const ByteStream &input_params,
+                                                        perform_cb _hidl_cb) {
+  const struct TUIEventParams *input_data =
+               reinterpret_cast<const TUIEventParams*>(input_params.data());
+
+  int32_t error = intf_->SendTUIEvent(input_data->dpy, input_data->tui_event_type);
+
+  _hidl_cb(error, {}, {});
+}
+
+void DeviceImpl::ParseDestroy(uint64_t client_handle, perform_cb _hidl_cb) {
+  auto itr = display_config_map_.find(client_handle);
+  if (itr == display_config_map_.end()) {
+    _hidl_cb(-EINVAL, {}, {});
+    return;
+  }
+
+  std::shared_ptr<DeviceClientContext> client = itr->second;
+  if (client != NULL) {
+    sp<IDisplayConfigCallback> callback = client->GetDeviceConfigCallback();
+    callback->unlinkToDeath(this);
+    ConfigInterface *intf = client->GetDeviceConfigIntf();
+    intf_->UnRegisterClientContext(intf);
+    client.reset();
+    display_config_map_.erase(itr);
+  }
+
+  _hidl_cb(0, {}, {});
 }
 
 Return<void> DeviceImpl::perform(uint64_t client_handle, uint32_t op_code,
@@ -837,6 +866,12 @@ Return<void> DeviceImpl::perform(uint64_t client_handle, uint32_t op_code,
       break;
     case kControlQsyncCallback:
       client->ParseControlQsyncCallback(client_handle, input_params, _hidl_cb);
+      break;
+    case kSendTUIEvent:
+      client->ParseSendTUIEvent(input_params, _hidl_cb);
+      break;
+    case kDestroy:
+      ParseDestroy(client_handle, _hidl_cb);
       break;
     default:
       break;
