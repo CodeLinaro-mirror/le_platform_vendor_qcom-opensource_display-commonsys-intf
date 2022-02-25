@@ -22,7 +22,6 @@
 
 #include <log/log.h>
 #include <hardware/gralloc.h>
-#include <hardware/gralloc1.h>
 #ifdef __cplusplus
 #include <cinttypes>
 #endif
@@ -30,8 +29,6 @@
 #define GRALLOC1_FUNCTION_PERFORM 0x00001000
 
 #define DBG_HANDLE false
-
-typedef gralloc1_error_t (*GRALLOC1_PFN_PERFORM)(gralloc1_device_t *device, int operation, ...);
 
 #define PRIV_HANDLE_CONST(exp) static_cast<const private_handle_t *>(exp)
 
