@@ -25,6 +25,10 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef __QTIGRALLOCMETADATA_H__
@@ -64,7 +68,8 @@
 #define QTI_RGB_DATA_ADDRESS 10023
 #define QTI_COLORSPACE 10024
 #define QTI_YUV_PLANE_INFO 10025
-
+// Early Notify line count
+#define QTI_EARLYNOTIFY_LINECOUNT 10026
 // Used to indicate to framework that internal definitions are used instead
 #define COMPRESSION_QTI_UBWC 20001
 #define INTERLACED_QTI 20002
@@ -183,14 +188,6 @@ struct qti_ycbcr {
   uint32_t cStride;
   uint32_t chromaStep;
 };
-
-/* Color Space Macros */
-#define HAL_CSC_ITU_R_601 0
-#define HAL_CSC_ITU_R_601_FR 1
-#define HAL_CSC_ITU_R_709 2
-#define HAL_CSC_ITU_R_709_FR 3
-#define HAL_CSC_ITU_R_2020 4
-#define HAL_CSC_ITU_R_2020_FR 5
 
 #define METADATA_SET_SIZE 512
 
