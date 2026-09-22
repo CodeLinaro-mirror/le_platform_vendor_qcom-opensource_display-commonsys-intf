@@ -59,6 +59,8 @@ import vendor.qti.hardware.display.config.CacV2Config;
 import vendor.qti.hardware.display.config.CacV2ConfigExt;
 import vendor.qti.hardware.display.config.ICwbControlConst;
 import vendor.qti.hardware.display.config.PoseConfigType;
+import vendor.qti.hardware.display.config.DynamicCacV2Config;
+import vendor.qti.hardware.display.config.VirtualDispType;
 
 @VintfStability
 /**
@@ -734,4 +736,26 @@ interface IDisplayConfig {
      * @return error is NONE upon success
      */
     void setHDRCapabilities(in DisplayType dpy, in HDRCapsParams caps);
+
+
+    /**
+     * @brief Configure Dynamic CAC to HWC HAL for a given display ID
+     *
+     * @param dispId display ID
+     * @param config Dynamic CAC configuration parameters
+     * @param enable control Dynamic CAC enable/disable
+     *
+     * @return error is NONE upon success
+     */
+    void configureDynamicCacV2(in int dispId, in DynamicCacV2Config config, in boolean enable);
+
+    /**
+     * @brief Set the type of virtual display to be created.
+     * This API MUST be called before createVirtualDisplay is called.
+     *
+     * @param type The virtual display type; specifies whether PQ capabilities are enabled.
+     *
+     * @return error is NONE upon success
+     */
+    void setVirtualDispType(in VirtualDispType type);
 }
